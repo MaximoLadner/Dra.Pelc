@@ -168,7 +168,7 @@ const Registro = () =>
 
         {/* BUSCADOR */}
         <input
-          placeholder="Buscar por nombre o DNI..."
+          placeholder="Buscar por Nombre o Dni..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           className="w-full mb-4 p-3 border rounded"
