@@ -87,9 +87,13 @@ const Registro = () =>
 
   // 🔍 FILTRO
   const filtrados = registros.filter(r =>
-    r[0]?.toLowerCase().includes(busqueda.toLowerCase()) ||
-    r[1]?.includes(busqueda)
-  );
+    {
+    const nombre = (r[0] || "").toString().toLowerCase();
+    const dni = (r[1] || "").toString();
+
+    return nombre.includes(busqueda.toLowerCase()) ||
+            dni.includes(busqueda);
+    });
 
   // 📄 PAGINACIÓN
   const totalPaginas = Math.ceil(filtrados.length / registrosPorPagina);
