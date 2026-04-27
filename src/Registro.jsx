@@ -11,12 +11,15 @@ const Registro = () =>
   });
 
   const [modal, setModal] = useState({
-  visible: false,
-  estado: "loading" // loading | success
-});
+    visible: false,
+    estado: "loading"
+  });
 
-  const [loading, setLoading] = useState(false);
   const [registros, setRegistros] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [pagina, setPagina] = useState(1);
+
+  const registrosPorPagina = 10;
 
   const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxOPc4aynD9FAVHIYV_ixGtXQebysdR7-bbzFDtpfU3f0KnrbjHT8bhTwLyxsP9VxrpMQ/exec";
 
@@ -28,15 +31,15 @@ const Registro = () =>
       const res = await fetch(SCRIPT_URL);
       const data = await res.json();
 
-      setRegistros(data.slice(1)); // sacamos headers
+      // 🔥 invertimos para que los nuevos queden arriba
+      setRegistros(data.slice(1).reverse());
     }
     catch (error)
     {
-      console.error("Error al obtener datos:", error);
+      console.error("Error:", error);
     }
   };
 
-  // 🚀 CARGA INICIAL
   useEffect(() =>
   {
     obtenerRegistros();
@@ -44,44 +47,63 @@ const Registro = () =>
 
   // 📤 ENVIAR
   const handleSubmit = async (e) =>
-{
-  e.preventDefault();
-
-  setModal({ visible: true, estado: "loading" });
-
-  try
   {
-    const formBody = new URLSearchParams(formData);
+    e.preventDefault();
 
-    await fetch(SCRIPT_URL, {
-      method: 'POST',
-      body: formBody
-    });
+    setModal({ visible: true, estado: "loading" });
 
-    await obtenerRegistros();
-
-    setModal({ visible: true, estado: "success" });
-
-    setFormData({
-      nombreApellido: '',
-      dni: '',
-      diagnostico: '',
-      obraSocial: '',
-      fecha: ''
-    });
-
-    setTimeout(() =>
+    try
     {
+      const formBody = new URLSearchParams(formData);
+
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        body: formBody
+      });
+
+      await obtenerRegistros();
+
+      setModal({ visible: true, estado: "success" });
+
+      setFormData({
+        nombreApellido: '',
+        dni: '',
+        diagnostico: '',
+        obraSocial: '',
+        fecha: ''
+      });
+
+      setTimeout(() =>
+      {
+        setModal({ visible: false, estado: "loading" });
+      }, 2000);
+    }
+    catch (error)
+    {
+      console.error(error);
       setModal({ visible: false, estado: "loading" });
-    }, 2000);
-  }
-  catch (error)
+    }
+  };
+
+  // 🔍 FILTRO
+  const filtrados = registros.filter(r =>
+    r[0]?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    r[1]?.includes(busqueda)
+  );
+
+  // 📄 PAGINACIÓN
+  const totalPaginas = Math.ceil(filtrados.length / registrosPorPagina);
+
+  const registrosPaginados = filtrados.slice(
+    (pagina - 1) * registrosPorPagina,
+    pagina * registrosPorPagina
+  );
+
+  // 🔁 resetear página al buscar
+  useEffect(() =>
   {
-    console.error(error);
-    setModal({ visible: false, estado: "loading" });
-    alert("Error al guardar");
-  }
-};
+    setPagina(1);
+  }, [busqueda]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-10">
@@ -123,9 +145,7 @@ const Registro = () =>
               className="p-3 border rounded"
             />
 
-            <p>Fecha de hoy:</p>
             <input
-              
               type="date"
               value={formData.fecha}
               onChange={(e) => setFormData({...formData, fecha: e.target.value})}
@@ -134,14 +154,21 @@ const Registro = () =>
 
             <button
               type="submit"
-              disabled={loading}
               className="bg-blue-600 text-white py-3 rounded md:col-span-2"
             >
-              {loading ? "Guardando..." : "Guardar"}
+              Guardar
             </button>
 
           </form>
         </div>
+
+        {/* BUSCADOR */}
+        <input
+          placeholder="Buscar por nombre o DNI..."
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          className="w-full mb-4 p-3 border rounded"
+        />
 
         {/* TABLA */}
         <div className="bg-white p-4 rounded-2xl shadow">
@@ -161,7 +188,7 @@ const Registro = () =>
             </thead>
 
             <tbody>
-              {registros.map((r, i) => (
+              {registrosPaginados.map((r, i) => (
                 <tr key={i} className="text-center border-t">
                   <td>{r[0]}</td>
                   <td>{r[1]}</td>
@@ -172,40 +199,62 @@ const Registro = () =>
               ))}
             </tbody>
           </table>
+
+          {/* PAGINACIÓN */}
+          <div className="flex justify-center gap-2 mt-4">
+            <button
+              disabled={pagina === 1}
+              onClick={() => setPagina(pagina - 1)}
+              className="px-3 py-1 bg-gray-200 rounded"
+            >
+              ←
+            </button>
+
+            <span className="px-3 py-1">
+              {pagina} / {totalPaginas || 1}
+            </span>
+
+            <button
+              disabled={pagina === totalPaginas}
+              onClick={() => setPagina(pagina + 1)}
+              className="px-3 py-1 bg-gray-200 rounded"
+            >
+              →
+            </button>
+          </div>
+
         </div>
 
       </div>
+
+      {/* MODAL */}
       {modal.visible && (
-  <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center gap-4">
 
-    <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center gap-4 animate-fadeIn">
+            {modal.estado === "loading" && (
+              <>
+                <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <p>Aguarde un momento Dra. Pelc...</p>
+              </>
+            )}
 
-      {modal.estado === "loading" && (
-        <>
-          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-lg font-medium text-slate-700">
-            Aguarde un momento Dra. Pelc...
-          </p>
-        </>
-      )}
+            {modal.estado === "success" && (
+              <>
+                <div className="w-16 h-16 bg-green-500 text-white flex items-center justify-center rounded-full text-3xl">
+                  ✓
+                </div>
+                <p className="text-green-600 font-semibold">
+                  Registro exitoso
+                </p>
+              </>
+            )}
 
-      {modal.estado === "success" && (
-        <>
-          <div className="w-16 h-16 bg-green-500 text-white flex items-center justify-center rounded-full text-3xl">
-            ✓
           </div>
-          <p className="text-lg font-semibold text-green-600">
-            Registro exitoso
-          </p>
-        </>
+        </div>
       )}
 
     </div>
-
-  </div>
-)}
-    </div>
-    
   );
 };
 
